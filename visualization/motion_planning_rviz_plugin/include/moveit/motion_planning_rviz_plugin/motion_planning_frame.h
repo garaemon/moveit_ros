@@ -263,7 +263,7 @@ private:
   
   ros::Subscriber plan_subscriber_;
   ros::Subscriber execute_subscriber_;
-
+  ros::Subscriber update_start_state_subscriber_;
   //General
   void changePlanningGroupHelper();
   void importResource(const std::string &path);
@@ -271,6 +271,7 @@ private:
 
   void planCallback(const std_msgs::EmptyConstPtr& msg);
   void executeCallback(const std_msgs::EmptyConstPtr& msg);
+  void updateStartStateCallback(const std_msgs::EmptyConstPtr& msg);
 
   /* Selects or unselects a item in a list by the item name */
   void setItemSelectionInList(const std::string &item_name, bool selection, QListWidget *list);
