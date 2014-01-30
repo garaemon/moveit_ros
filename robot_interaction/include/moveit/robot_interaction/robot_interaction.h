@@ -39,6 +39,7 @@
 
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <visualization_msgs/InteractiveMarker.h>
+#include <geometry_msgs/PoseArray.h>
 #include <interactive_markers/menu_handler.h>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/macros/class_forward.h>
@@ -515,6 +516,9 @@ private:
   void addEndEffectorMarkers(const InteractionHandlerPtr &handler, const EndEffector& eef, visualization_msgs::InteractiveMarker& im, bool position = true, bool orientation = true);
   void addEndEffectorMarkers(const InteractionHandlerPtr &handler, const EndEffector& eef, const geometry_msgs::Pose& offset, visualization_msgs::InteractiveMarker& im, bool position = true, bool orientation = true);
   void processInteractiveMarkerFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr& feedback);
+  void moveInteractiveMarker(const std::string name,
+                             const geometry_msgs::PoseStampedConstPtr& msg);
+  void subscribeMoveInteractiveMarker(const std::string marker_name, const std::string& name);
   void processingThread();
   void clearInteractiveMarkersUnsafe();
 
@@ -544,6 +548,8 @@ private:
   boost::mutex marker_access_lock_;
 
   interactive_markers::InteractiveMarkerServer *int_marker_server_;
+  // ros subscribers for move the interactive markers by other ros nodes
+  std::vector<ros::Subscriber> int_marker_move_subscribers_;
   std::string topic_;
 };
 

@@ -295,4 +295,39 @@ void MotionPlanningFrame::configureForPlanning()
   configureWorkspace();
 }
 
+void MotionPlanningFrame::planCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  planButtonClicked();
+}
+
+void MotionPlanningFrame::executeCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  executeButtonClicked();
+}
+
+void MotionPlanningFrame::updateStartStateCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  if (move_group_ && planning_display_) {
+    robot_state::RobotState state = *planning_display_->getQueryStartState();
+    const planning_scene_monitor::LockedPlanningSceneRO &ps = planning_display_->getPlanningSceneRO();
+    if (ps) {
+      state = ps->getCurrentState();
+      planning_display_->setQueryStartState(state);
+    }
+  }
+}
+
+void MotionPlanningFrame::updateGoalStateCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  if (move_group_ && planning_display_) {
+    robot_state::RobotState state = *planning_display_->getQueryStartState();
+    const planning_scene_monitor::LockedPlanningSceneRO &ps = planning_display_->getPlanningSceneRO();
+    if (ps) {
+      state = ps->getCurrentState();
+      planning_display_->setQueryGoalState(state);
+    }
+  }
+}
+
+  
 }
