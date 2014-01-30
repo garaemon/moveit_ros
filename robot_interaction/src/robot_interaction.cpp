@@ -790,7 +790,7 @@ void RobotInteraction::addInteractiveMarkers(const InteractionHandlerPtr &handle
         ROS_DEBUG_NAMED("robot_interaction", "Publishing interactive marker %s (size = %lf)", im.name.c_str(), im.scale);
       }
     }
-
+    ros::NodeHandle nh;
     for (std::size_t i = 0 ; i < active_eef_.size() ; ++i)
     {
       geometry_msgs::PoseStamped pose;
@@ -801,6 +801,9 @@ void RobotInteraction::addInteractiveMarkers(const InteractionHandlerPtr &handle
 
       std::string marker_name = getMarkerName(handler, active_eef_[i]);
       shown_markers_[marker_name] = i;
+      
+      ros::Subscriber sub = nh.subscribe<geometry_msgs::PoseStamped>("/rviz/moveit/" + handler->getName() + "/move_marker", 1, boost::bind(&RobotInteraction::moveInteractiveMarker, this, marker_name, _1));
+      int_marker_move_subscribers_.push_back(sub);
 
       // Determine interactive maker size
       double mscale = marker_scale < std::numeric_limits<double>::epsilon() ? active_eef_[i].size : marker_scale;
@@ -865,16 +868,11 @@ void RobotInteraction::addInteractiveMarkers(const InteractionHandlerPtr &handle
   // we do this while marker_access_lock_ is unlocked because the interactive marker server locks
   // for most function calls, and maintains that lock while the feedback callback is running
   // that can cause a deadlock if we were to run the loop below while marker_access_lock_ is locked
-  ros::NodeHandle nh;
   for (std::size_t i = 0 ; i < ims.size() ; ++i)
   {
     int_marker_server_->insert(ims[i]);
     int_marker_server_->setCallback(ims[i].name, boost::bind(&RobotInteraction::processInteractiveMarkerFeedback, this, _1));
 
-    // replace ims[i].name into ros safe name
-    std::string ims_name_topic = boost::algorithm::replace_all_copy(ims[i].name, ":", "_");
-    ros::Subscriber sub = nh.subscribe<geometry_msgs::PoseStamped>("/moveit/rviz/" + ims_name_topic, 1, boost::bind(&RobotInteraction::moveInteractiveMarker, this, ims[i].name, _1));
-    int_marker_move_subscribers_.push_back(sub);
     // Add menu handler to all markers that this interaction handler creates.
     if (boost::shared_ptr<interactive_markers::MenuHandler> mh = handler->getMenuHandler())
       mh->apply(*int_marker_server_, ims[i].name);
@@ -1009,18 +1007,23 @@ bool RobotInteraction::updateState(robot_state::RobotState &state, const EndEffe
 
 void RobotInteraction::moveInteractiveMarker(std::string name, const geometry_msgs::PoseStampedConstPtr& msg)
 {
-  std::map<std::string, std::size_t>::const_iterator it = shown_markers_.find(name);
-  if (it != shown_markers_.end()) {
-    int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
-    int_marker_server_->applyChanges();
-    // call processInteractiveMarkerFeedback
-    visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
-    feedback->header = msg->header;
-    feedback->marker_name = name;
-    feedback->pose = msg->pose;
-    feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
-    processInteractiveMarkerFeedback(feedback);
+  {
+    boost::unique_lock<boost::mutex> ulock(marker_access_lock_);
+    std::map<std::string, std::size_t>::const_iterator it = shown_markers_.find(name);
+    if (it != shown_markers_.end()) {
+      int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
+      int_marker_server_->applyChanges();
+    }
+    else {
+      return;
+    }
   }
+  visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
+  feedback->header = msg->header;
+  feedback->marker_name = name;
+  feedback->pose = msg->pose;
+  feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
+  processInteractiveMarkerFeedback(feedback);
 }
 
 void RobotInteraction::processInteractiveMarkerFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr& feedback)
