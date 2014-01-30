@@ -873,7 +873,6 @@ void RobotInteraction::addInteractiveMarkers(const InteractionHandlerPtr &handle
 
     // replace ims[i].name into ros safe name
     std::string ims_name_topic = boost::algorithm::replace_all_copy(ims[i].name, ":", "_");
-    //boost::bind(&RobotInteraction::moveInteractiveMarker, this, ims[i].name, _1);
     ros::Subscriber sub = nh.subscribe<geometry_msgs::PoseStamped>("/moveit/rviz/" + ims_name_topic, 1, boost::bind(&RobotInteraction::moveInteractiveMarker, this, ims[i].name, _1));
     int_marker_move_subscribers_.push_back(sub);
     // Add menu handler to all markers that this interaction handler creates.
@@ -1010,16 +1009,18 @@ bool RobotInteraction::updateState(robot_state::RobotState &state, const EndEffe
 
 void RobotInteraction::moveInteractiveMarker(std::string name, const geometry_msgs::PoseStampedConstPtr& msg)
 {
-  int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
-  int_marker_server_->applyChanges();
-  // call processInteractiveMarkerFeedback
-  visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
-  feedback->header = msg->header;
-  feedback->marker_name = name;
-  feedback->pose = msg->pose;
-  feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
-  processInteractiveMarkerFeedback(feedback);
-
+  std::map<std::string, std::size_t>::const_iterator it = shown_markers_.find(name);
+  if (it != shown_markers_.end()) {
+    int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
+    int_marker_server_->applyChanges();
+    // call processInteractiveMarkerFeedback
+    visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
+    feedback->header = msg->header;
+    feedback->marker_name = name;
+    feedback->pose = msg->pose;
+    feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
+    processInteractiveMarkerFeedback(feedback);
+  }
 }
 
 void RobotInteraction::processInteractiveMarkerFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr& feedback)
