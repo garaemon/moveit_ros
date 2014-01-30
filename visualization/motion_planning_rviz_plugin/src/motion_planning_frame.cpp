@@ -176,6 +176,10 @@ MotionPlanningFrame::MotionPlanningFrame(MotionPlanningDisplay *pdisplay, rviz::
   {
     ROS_ERROR("%s", ex.what());
   }
+
+  ros::NodeHandle nh;
+  plan_subscriber_ = nh.subscribe("/rviz/moveit/plan", 1, &MotionPlanningFrame::planCallback, this);
+  execute_subscriber_ = nh.subscribe("/rviz/moveit/execute", 1, &MotionPlanningFrame::executeCallback, this);
 }
 
 MotionPlanningFrame::~MotionPlanningFrame()

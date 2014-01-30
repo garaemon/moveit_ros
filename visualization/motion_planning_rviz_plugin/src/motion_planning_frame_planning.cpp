@@ -295,4 +295,15 @@ void MotionPlanningFrame::configureForPlanning()
   configureWorkspace();
 }
 
+void MotionPlanningFrame::planCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  planButtonClicked();
+}
+
+void MotionPlanningFrame::executeCallback(const std_msgs::EmptyConstPtr& msg)
+{
+  executeButtonClicked();
+}
+
+
 }
