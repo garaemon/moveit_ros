@@ -51,7 +51,8 @@
 #include <rviz/frame_manager.h>
 #include <tf/transform_listener.h>
 
-#include <OGRE/OgreSceneManager.h>
+#include <OgreSceneManager.h>
+#include <OgreSceneNode.h>
 
 namespace moveit_rviz_plugin
 {
@@ -117,7 +118,7 @@ void RobotStateDisplay::onInitialize()
   robot_.reset(new RobotStateVisualization(scene_node_, context_, "Robot State", this));
   changedEnableVisualVisible();
   changedEnableCollisionVisible();
-  robot_->setVisible(true);
+  robot_->setVisible(false);
 }
 
 void RobotStateDisplay::reset()

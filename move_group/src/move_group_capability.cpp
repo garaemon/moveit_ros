@@ -87,6 +87,7 @@ planning_interface::MotionPlanRequest move_group::MoveGroupCapability::clearRequ
 {
   planning_interface::MotionPlanRequest r = request;
   r.start_state = moveit_msgs::RobotState();
+  r.start_state.is_diff = true;  
   ROS_WARN("Execution of motions should always start at the robot's current state. Ignoring the state supplied as start state in the motion planning request");
   return r;
 }
@@ -95,6 +96,7 @@ moveit_msgs::PlanningScene move_group::MoveGroupCapability::clearSceneRobotState
 {
   moveit_msgs::PlanningScene r = scene;
   r.robot_state = moveit_msgs::RobotState();
+  r.robot_state.is_diff = true;  
   ROS_WARN("Execution of motions should always start at the robot's current state. Ignoring the state supplied as difference in the planning scene diff");
   return r;
 }
@@ -143,14 +145,11 @@ std::string move_group::MoveGroupCapability::getActionResultString(const moveit_
                   if (error_code.val == moveit_msgs::MoveItErrorCodes::INVALID_GOAL_CONSTRAINTS)
                     return "Invalid goal constraints";
                   else
-                    if (error_code.val == moveit_msgs::MoveItErrorCodes::INVALID_GROUP_NAME)
-                      return "Invalid group name";
+                    if (error_code.val == moveit_msgs::MoveItErrorCodes::INVALID_OBJECT_NAME)
+                      return "Invalid object name";
                     else
-                      if (error_code.val == moveit_msgs::MoveItErrorCodes::INVALID_OBJECT_NAME)
-                        return "Invalid object name";
-                      else
-                        if (error_code.val == moveit_msgs::MoveItErrorCodes::FAILURE)
-                          return "Catastrophic failure";
+                      if (error_code.val == moveit_msgs::MoveItErrorCodes::FAILURE)
+                        return "Catastrophic failure";
   return "Unknown event";
 }
 

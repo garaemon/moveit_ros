@@ -2,6 +2,31 @@
 Changelog for package moveit_ros_manipulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.18 (2014-03-23)
+-------------------
+
+0.5.17 (2014-03-22)
+-------------------
+* update build system for ROS indigo
+* fix merge
+* refactor how we use params for pick&place
+* set the pose frame so we don't get a crash in approach&translate
+* Contributors: Ioan Sucan
+
+0.5.16 (2014-02-27)
+-------------------
+
+0.5.14 (2014-02-06)
+-------------------
+
+0.5.13 (2014-02-06)
+-------------------
+* ApproachAndTranslateStage dynamic reconfigure bug fixed.
+  The bug shows up in test code, where it becomes apparent that creating a ros::NodeHandle
+  in a static initializer makes it very difficult to call ros::init() before creating
+  the first NodeHandle.
+* Contributors: Dave Hershberger
+
 0.5.12 (2014-01-03)
 -------------------
 

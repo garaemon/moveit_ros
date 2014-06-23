@@ -2,6 +2,44 @@
 Changelog for package moveit_ros_visualization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.18 (2014-03-23)
+-------------------
+* add pkg-config as dep
+* find PkgConfig before using pkg_check_modules
+  PC specific functions mustn't be used before including PkgConfig
+* Contributors: Ioan Sucan, v4hn
+
+0.5.17 (2014-03-22)
+-------------------
+* update build system for ROS indigo
+* update maintainer e-mail
+* Contributors: Ioan Sucan
+
+0.5.16 (2014-02-27)
+-------------------
+* back out problematic ogre fixes
+* robot_interaction: split InteractionHandler into its own file
+* Switched from isStateColliding to isStateValid
+* Changed per PR review
+* Clean up debug output
+* Added ability to set a random <collision free> start/goal position
+* Merge branch 'hydro-devel' of https://github.com/ros-planning/moveit_ros into acorn_rviz_stereo
+* rviz: prepare for Ogre1.10
+* Contributors: Acorn Pooley, Dave Coleman
+
+0.5.14 (2014-02-06)
+-------------------
+
+0.5.13 (2014-02-06)
+-------------------
+* remove debug printfs
+* planning_scene_display: use requestPlanningSceneState()
+  Get current planning scene state when planning scene display is
+  enabled and/or model is loaded.
+* Fix Parse error at "BOOST_JOIN" error
+  See: https://bugreports.qt-project.org/browse/QTBUG-22829
+* Contributors: Acorn Pooley, Benjamin Chretien
+
 0.5.12 (2014-01-03)
 -------------------
 
