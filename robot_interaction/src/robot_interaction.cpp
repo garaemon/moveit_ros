@@ -68,11 +68,6 @@ RobotInteraction::RobotInteraction(const robot_model::RobotModelConstPtr &robot_
 {
   topic_ = ns.empty() ? INTERACTIVE_MARKER_TOPIC : ns + "/" + INTERACTIVE_MARKER_TOPIC;
   int_marker_server_ = new interactive_markers::InteractiveMarkerServer(topic_);
-  // ros::NodeHandle nh;
-  // move_marker_sub_ = nh.subscribe(
-  //   "/rviz/moveit/move_marker",
-  //   1,
-  //   &RobotInteraction::moveInteractiveMarker, this);
   
   // spin a thread that will process feedback events
   run_processing_thread_ = true;
@@ -698,22 +693,29 @@ bool RobotInteraction::updateState(
 void RobotInteraction::moveInteractiveMarker(const std::string name, const geometry_msgs::PoseStampedConstPtr& msg)
 {
   {
-    boost::unique_lock<boost::mutex> ulock(marker_access_lock_);
+    
     std::map<std::string, std::size_t>::const_iterator it = shown_markers_.find(name);
-    if (it != shown_markers_.end()) {
-      int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
-      int_marker_server_->applyChanges();
+    if (it != shown_markers_.end())
+    {
+      visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
+      feedback->header = msg->header;
+      feedback->marker_name = name;
+      feedback->pose = msg->pose;
+      feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
+      processInteractiveMarkerFeedback(feedback);
+      {
+        boost::unique_lock<boost::mutex> ulock(marker_access_lock_);
+        int_marker_server_->setPose(name, msg->pose, msg->header); // move the interactive marker
+        int_marker_server_->applyChanges();
+      }
     }
-    else {
+    else
+    {
       return;
     }
   }
-  visualization_msgs::InteractiveMarkerFeedback::Ptr feedback (new visualization_msgs::InteractiveMarkerFeedback);
-  feedback->header = msg->header;
-  feedback->marker_name = name;
-  feedback->pose = msg->pose;
-  feedback->event_type = visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE;
-  processInteractiveMarkerFeedback(feedback);
+  
+//  }
 }
 
 void RobotInteraction::processInteractiveMarkerFeedback(

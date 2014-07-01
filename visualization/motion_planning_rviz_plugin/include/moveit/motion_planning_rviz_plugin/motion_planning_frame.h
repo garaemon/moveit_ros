@@ -271,10 +271,10 @@ private:
   void importResource(const std::string &path);
   void loadStoredStates(const std::string& pattern);
 
-  void planCallback(const std_msgs::EmptyConstPtr& msg);
-  void executeCallback(const std_msgs::EmptyConstPtr& msg);
-  void updateStartStateCallback(const std_msgs::EmptyConstPtr& msg);
-  void updateGoalStateCallback(const std_msgs::EmptyConstPtr& msg);
+  void remotePlanCallback(const std_msgs::EmptyConstPtr& msg);
+  void remoteExecuteCallback(const std_msgs::EmptyConstPtr& msg);
+  void remoteUpdateStartStateCallback(const std_msgs::EmptyConstPtr& msg);
+  void remoteUpdateGoalStateCallback(const std_msgs::EmptyConstPtr& msg);
 
   /* Selects or unselects a item in a list by the item name */
   void setItemSelectionInList(const std::string &item_name, bool selection, QListWidget *list);

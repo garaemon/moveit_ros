@@ -301,12 +301,15 @@ void MotionPlanningDisplay::selectPlanningGroupCallback(const std_msgs::StringCo
 {
   if (!getRobotModel() || !robot_interaction_)
     return;
-  if (getRobotModel()->hasJointModelGroup(msg->data)) {
+  if (getRobotModel()->hasJointModelGroup(msg->data))
+  {
     planning_group_property_->setStdString(msg->data);
     changedPlanningGroup();
   }
-  else 
+  else
+  {
     ROS_ERROR("Group [%s] not found in the robot model.", msg->data.c_str());
+  }
 }
 void MotionPlanningDisplay::reset()
 {

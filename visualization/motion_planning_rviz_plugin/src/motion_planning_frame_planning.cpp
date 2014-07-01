@@ -328,17 +328,17 @@ void MotionPlanningFrame::configureForPlanning()
   configureWorkspace();
 }
 
-void MotionPlanningFrame::planCallback(const std_msgs::EmptyConstPtr& msg)
+void MotionPlanningFrame::remotePlanCallback(const std_msgs::EmptyConstPtr& msg)
 {
   planButtonClicked();
 }
 
-void MotionPlanningFrame::executeCallback(const std_msgs::EmptyConstPtr& msg)
+void MotionPlanningFrame::remoteExecuteCallback(const std_msgs::EmptyConstPtr& msg)
 {
   executeButtonClicked();
 }
 
-void MotionPlanningFrame::updateStartStateCallback(const std_msgs::EmptyConstPtr& msg)
+void MotionPlanningFrame::remoteUpdateStartStateCallback(const std_msgs::EmptyConstPtr& msg)
 {
   if (move_group_ && planning_display_) {
     robot_state::RobotState state = *planning_display_->getQueryStartState();
@@ -350,7 +350,7 @@ void MotionPlanningFrame::updateStartStateCallback(const std_msgs::EmptyConstPtr
   }
 }
 
-void MotionPlanningFrame::updateGoalStateCallback(const std_msgs::EmptyConstPtr& msg)
+void MotionPlanningFrame::remoteUpdateGoalStateCallback(const std_msgs::EmptyConstPtr& msg)
 {
   if (move_group_ && planning_display_) {
     robot_state::RobotState state = *planning_display_->getQueryStartState();
