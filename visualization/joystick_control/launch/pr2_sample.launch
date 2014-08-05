@@ -1,0 +1,17 @@
+<launch>
+  <node pkg="joy" type="joy_node" name="joy">
+    <param name="dev" value="/dev/input/js1" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" value="40" />
+    <param name="coalesce_interval" value="0.025" />
+  </node>
+  <node pkg="moveit_ros_visualization"
+        type="moveit_joy.py"
+        output="screen"
+        name="moveit_joy">
+    <rosparam>
+      planning_group: ["left_arm", "right_arm", "left_arm_and_torso", "right_arm_and_torso"]
+      pose_topics: ["/rviz/moveit/move_marker/goal_l_wrist_roll_link", "/rviz/moveit/move_marker/goal_r_wrist_roll_link", "/rviz/moveit/move_marker/goal_l_wrist_roll_link", "/rviz/moveit/move_marker/goal_r_wrist_roll_link"]
+    </rosparam>
+  </node>
+</launch>
