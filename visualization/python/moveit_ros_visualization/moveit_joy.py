@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import xml.dom.minidom
+from operator import add
+
+
 import rospy
 import roslib
 import numpy
@@ -303,6 +307,55 @@ class StatusHistory():
       return getattr(status, attr) and not getattr(self.latest(), attr)
     
 class MoveitJoy:
+    def parseSRDF(self):
+        # key := planning group name
+        # value := list of the topic names
+        planning_groups = {}
+        srdf = rospy.get_param("/robot_description_semantic")
+        # 1. get all the planning groups
+        #   lookup all the <group> tags
+        # 2. about for each <group> tag, find end effector
+        dom = xml.dom.minidom.parseString(srdf)
+        groups = dom.getElementsByTagName("group")
+        groups_has_subgroups = []
+        virtual_joints = dom.getElementsByTagName("virtual_joint")
+        for group in groups:
+            name = group.getAttribute("name")
+            # check <chain> and <joint> tag
+            # if it has <subgroup> tag, processing will be postponed
+            # until all other groups finish to be processed
+            chain = group.getElementsByTagName("chain")
+            joint = group.getElementsByTagName("joint")
+            subgroup = group.getElementsByTagName("group")
+            if len(chain) > 0:
+                tip_links = [c.getAttribute("tip_link") for c in chain]
+                planning_groups[name] = ["/rviz/moveit/move_marker/goal_" + l 
+                                         for l in tip_links]
+            elif len(joint) > 0:
+                joint_names = [j.getAttribute("name") for j in joint]
+                # suppose joint is virtual_join and lookup child_link
+                child_links = [[vj.getAttribute("child_link") for vj in virtual_joints if vj.getAttribute("name") == j]
+                               for j in joint_names]
+                planning_groups[name] = ["/rviz/moveit/move_marker/goal_" + l[0]
+                                         for l in child_links if len(l) > 0]
+            elif len(subgroup) > 0:       
+                groups_has_subgroups.append(group)   #process after
+            else:
+                pass
+        for group in groups_has_subgroups:
+            subgroups = group.getElementsByTagName("group")
+            name = group.getAttribute("name")
+            all_topics = [planning_groups[subgroup.getAttribute("name")]
+                          for subgroup in subgroups 
+                          if planning_groups.has_key(subgroup.getAttribute("name"))]
+            planning_groups[name] = reduce(add, all_topics)
+        for name in planning_groups.keys():
+            if len(planning_groups[name]) == 0:
+                del planning_groups[name]
+            else:
+                print name, planning_groups[name]
+        self.planning_groups = planning_groups
+        self.planning_groups_keys = planning_groups.keys()   #we'd like to store the 'order'
     def __init__(self):
         self.prev_time = rospy.Time.now()
         self.counter = 0
@@ -310,17 +363,40 @@ class MoveitJoy:
         self.pre_pose = PoseStamped()
         self.pre_pose.pose.orientation.w = 1
         self.current_planning_group_index = 0
-        self.pose_topics = rospy.get_param('~pose_topics', [])
-        self.planning_groups = rospy.get_param("~planning_group", [])
+        self.current_eef_index = 0
+        self.parseSRDF()
         self.plan_group_pub = rospy.Publisher('/rviz/moveit/select_planning_group', String)
-        self.plan_group_pub.publish(String(self.planning_groups[0]))
+        self.updatePlanningGroup(0)
+        self.updatePoseTopic(0)
+        self.joy_pose_pub = rospy.Publisher("/joy_pose", PoseStamped)
         self.frame_id = rospy.get_param("~frame_id", "/odom_combined")
-        self.pose_pub = rospy.Publisher(self.pose_topics[0], PoseStamped)
         self.plan_pub = rospy.Publisher("/rviz/moveit/plan", Empty)
         self.execute_pub = rospy.Publisher("/rviz/moveit/execute", Empty)
         self.update_start_state_pub = rospy.Publisher("/rviz/moveit/update_start_state", Empty)
         self.update_goal_state_pub = rospy.Publisher("/rviz/moveit/update_goal_state", Empty)
         self.sub = rospy.Subscriber("/joy", Joy, self.joyCB, queue_size=1)
+    def updatePlanningGroup(self, next_index):
+        if next_index >= len(self.planning_groups_keys):
+            self.current_planning_group_index = 0
+        elif next_index < 0:
+            self.current_planning_group_index = len(self.planning_groups_keys) - 1
+        else:
+            self.current_planning_group_index = next_index
+        next_planning_group = self.planning_groups_keys[self.current_planning_group_index]
+        rospy.loginfo("change planning group to " + next_planning_group)
+        self.plan_group_pub.publish(next_planning_group)
+    def updatePoseTopic(self, next_index):
+        planning_group = self.planning_groups_keys[self.current_planning_group_index]
+        topics = self.planning_groups[planning_group]
+        if next_index >= len(topics):
+            self.current_eef_index = 0
+        elif next_index < 0:
+            self.current_eef_index = len(topics) - 1
+        else:
+            self.current_eef_index = next_index
+        next_topic = topics[self.current_eef_index]
+        rospy.loginfo("change planning eef to " + next_topic)
+        self.pose_pub = rospy.Publisher(next_topic, PoseStamped)
     def joyCB(self, msg):
         if len(msg.axes) == 27 and len(msg.buttons) == 19:
             status = PS3WiredStatus(msg)
@@ -431,23 +507,20 @@ class MoveitJoy:
         if (now - self.prev_time).to_sec() > 1 / 30.0:
             # rospy.loginfo(new_pose)
             self.pose_pub.publish(new_pose)
+            self.joy_pose_pub.publish(new_pose)
             self.prev_time = now
         if self.history.new(status, "triangle"):   #increment planning group
-            self.current_planning_group_index = self.current_planning_group_index + 1
-            if self.current_planning_group_index >= len(self.planning_groups):
-                self.current_planning_group_index = 0
-            rospy.loginfo("change planning group to " + self.planning_groups[self.current_planning_group_index])
-            self.plan_group_pub.publish(self.planning_groups[self.current_planning_group_index])
-            rospy.loginfo("publish PoseStamped to " + self.pose_topics[self.current_planning_group_index])
-            self.pose_pub = rospy.Publisher(self.pose_topics[self.current_planning_group_index], PoseStamped)
+            self.updatePlanningGroup(self.current_planning_group_index + 1)
+            self.current_eef_index = 0    # force to reset
+            self.updatePoseTopic(self.current_eef_index)
         elif self.history.new(status, "cross"):   #decrement planning group
-            self.current_planning_group_index = self.current_planning_group_index - 1
-            if self.current_planning_group_index < 0:
-                self.current_planning_group_index = len(self.planning_groups) - 1
-            rospy.loginfo("change planning group to " + self.planning_groups[self.current_planning_group_index])
-            self.plan_group_pub.publish(self.planning_groups[self.current_planning_group_index])
-            rospy.loginfo("publish PoseStamped to " + self.pose_topics[self.current_planning_group_index])
-            self.pose_pub = rospy.Publisher(self.pose_topics[self.current_planning_group_index], PoseStamped)
+            self.updatePlanningGroup(self.current_planning_group_index - 1)
+            self.current_eef_index = 0    # force to reset
+            self.updatePoseTopic(self.current_eef_index)
+        elif self.history.new(status, "select"):
+            self.updatePoseTopic(self.current_eef_index + 1)
+        elif self.history.new(status, "start"):
+            self.updatePoseTopic(self.current_eef_index - 1)
         elif self.history.new(status, "square"):   #plan
             rospy.loginfo("Plan")
             self.plan_pub.publish(Empty())

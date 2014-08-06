@@ -9,9 +9,5 @@
         type="moveit_joy.py"
         output="screen"
         name="moveit_joy">
-    <rosparam>
-      planning_group: ["left_arm", "right_arm", "left_arm_and_torso", "right_arm_and_torso"]
-      pose_topics: ["/rviz/moveit/move_marker/goal_l_wrist_roll_link", "/rviz/moveit/move_marker/goal_r_wrist_roll_link", "/rviz/moveit/move_marker/goal_l_wrist_roll_link", "/rviz/moveit/move_marker/goal_r_wrist_roll_link"]
-    </rosparam>
   </node>
 </launch>
