@@ -106,6 +106,8 @@ protected:
 
   void updateSceneMarkers(float wall_dt, float ros_dt);
 
+  void updateExternalCommunication();
+  
   MotionPlanningDisplay *planning_display_;
   rviz::DisplayContext* context_;
   Ui::MotionPlanningUI *ui_;
