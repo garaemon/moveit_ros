@@ -205,7 +205,6 @@ void MotionPlanningFrame::allowExternalProgramCommunication(bool enable)
                                                   &MotionPlanningFrame::remoteUpdateStartStateCallback, this);
     update_goal_state_subscriber_ = nh.subscribe("/rviz/moveit/update_goal_state",1,
                                                  &MotionPlanningFrame::remoteUpdateGoalStateCallback, this);
-    
   }
   else {                        // disable
     plan_subscriber_.shutdown();
@@ -443,4 +442,12 @@ void MotionPlanningFrame::updateSceneMarkers(float wall_dt, float ros_dt)
     scene_marker_->update(wall_dt);
 }
 
+void MotionPlanningFrame::updateExternalCommunication()
+{
+  if (ui_->allow_external_program->isChecked()) {
+    planning_display_->getRobotInteraction()->toggleMoveInteractiveMarkerTopic(true);
+  }
+}
+
+  
 } // namespace

@@ -896,6 +896,9 @@ void MotionPlanningDisplay::publishInteractiveMarkers(bool pose_update)
         robot_interaction_->addInteractiveMarkers(query_goal_state_, query_marker_scale_property_->getFloat());
       robot_interaction_->publishInteractiveMarkers();
     }
+    if (frame_) {
+      frame_->updateExternalCommunication();
+    }
   }
 }
 

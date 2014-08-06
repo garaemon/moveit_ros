@@ -588,8 +588,7 @@ void RobotInteraction::toggleMoveInteractiveMarkerTopic(bool enable)
   if (enable) {
     boost::unique_lock<boost::mutex> ulock(marker_access_lock_);
     if (int_marker_move_subscribers_.size() != 0) {
-      // already enabled, do nothing
-      ROS_INFO("already enabled");
+      
     }
     else {
       ros::NodeHandle nh;
