@@ -196,6 +196,7 @@ void MotionPlanningFrame::setItemSelectionInList(const std::string &item_name, b
 
 void MotionPlanningFrame::allowExternalProgramCommunication(bool enable)
 {
+  planning_display_->getRobotInteraction()->toggleMoveInteractiveMarkerTopic(enable);
   if (enable) {
     ros::NodeHandle nh;
     plan_subscriber_ = nh.subscribe("/rviz/moveit/plan", 1, &MotionPlanningFrame::remotePlanCallback, this);
@@ -204,7 +205,7 @@ void MotionPlanningFrame::allowExternalProgramCommunication(bool enable)
                                                   &MotionPlanningFrame::remoteUpdateStartStateCallback, this);
     update_goal_state_subscriber_ = nh.subscribe("/rviz/moveit/update_goal_state",1,
                                                  &MotionPlanningFrame::remoteUpdateGoalStateCallback, this);
-
+    
   }
   else {                        // disable
     plan_subscriber_.shutdown();
