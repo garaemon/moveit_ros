@@ -2,6 +2,7 @@
 
 import xml.dom.minidom
 from operator import add
+import threading
 from moveit_ros_planning_interface._moveit_robot_interface import RobotInterface
 
 import rospy
@@ -12,6 +13,7 @@ import tf
 from std_msgs.msg import Empty, String
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import PoseStamped
+from visualization_msgs.msg import InteractiveMarkerInit
 
 def signedSquare(val):
   if val > 0:
@@ -320,7 +322,11 @@ class MoveitJoy:
                 print name, planning_groups[name]
         self.planning_groups = planning_groups
         self.planning_groups_keys = planning_groups.keys()   #we'd like to store the 'order'
+        self.frame_id = ri.get_planning_frame()
     def __init__(self):
+        self.initial_poses = {}
+        self.tf_listener = tf.TransformListener()
+        self.marker_lock = threading.Lock()
         self.prev_time = rospy.Time.now()
         self.counter = 0
         self.history = StatusHistory(max_length=10)
@@ -328,16 +334,20 @@ class MoveitJoy:
         self.pre_pose.pose.orientation.w = 1
         self.current_planning_group_index = 0
         self.current_eef_index = 0
+        self.initialize_poses = False
+        self.initialized = False
         self.parseSRDF()
         self.plan_group_pub = rospy.Publisher('/rviz/moveit/select_planning_group', String)
         self.updatePlanningGroup(0)
-        self.updatePoseTopic(0)
+        self.updatePoseTopic(0, False)
         self.joy_pose_pub = rospy.Publisher("/joy_pose", PoseStamped)
-        self.frame_id = rospy.get_param("~frame_id", "/odom_combined")
         self.plan_pub = rospy.Publisher("/rviz/moveit/plan", Empty)
         self.execute_pub = rospy.Publisher("/rviz/moveit/execute", Empty)
         self.update_start_state_pub = rospy.Publisher("/rviz/moveit/update_start_state", Empty)
         self.update_goal_state_pub = rospy.Publisher("/rviz/moveit/update_goal_state", Empty)
+        self.interactive_marker_sub = rospy.Subscriber("/rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic/update_full",
+                                                       InteractiveMarkerInit,
+                                                       self.markerCB, queue_size=1)
         self.sub = rospy.Subscriber("/joy", Joy, self.joyCB, queue_size=1)
     def updatePlanningGroup(self, next_index):
         if next_index >= len(self.planning_groups_keys):
@@ -349,7 +359,7 @@ class MoveitJoy:
         next_planning_group = self.planning_groups_keys[self.current_planning_group_index]
         rospy.loginfo("change planning group to " + next_planning_group)
         self.plan_group_pub.publish(next_planning_group)
-    def updatePoseTopic(self, next_index):
+    def updatePoseTopic(self, next_index, wait=True):
         planning_group = self.planning_groups_keys[self.current_planning_group_index]
         topics = self.planning_groups[planning_group]
         if next_index >= len(topics):
@@ -361,6 +371,50 @@ class MoveitJoy:
         next_topic = topics[self.current_eef_index]
         rospy.loginfo("change planning eef to " + next_topic)
         self.pose_pub = rospy.Publisher(next_topic, PoseStamped)
+        if wait:
+            self.waitForInitialPose(next_topic)
+        self.current_pose_topic = next_topic
+    def markerCB(self, msg):
+        try:
+            self.marker_lock.acquire()
+            if not self.initialize_poses:
+                return
+            self.initial_poses = {}
+            for marker in msg.markers:
+                if marker.name.startswith("EE:goal_"):
+                    # resolve tf
+                    if marker.header.frame_id != self.frame_id:
+                        ps = PoseStamped(header=marker.header, pose=marker.pose)
+                        try:
+                            transformed_pose = self.tf_listener.transformPose(self.frame_id, ps)
+                            self.initial_poses[marker.name[3:]] = transformed_pose.pose
+                        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException, e):
+                            rospy.logerr("tf error when resolving tf: %s" % e)
+                    else:
+                        self.initial_poses[marker.name[3:]] = marker.pose   #tf should be resolved
+        finally:
+            self.marker_lock.release()
+    def waitForInitialPose(self, next_topic, timeout=None):
+        counter = 0
+        while not rospy.is_shutdown():
+            counter = counter + 1
+            if timeout and counter >= timeout:
+                return False
+            try:
+                self.marker_lock.acquire()
+                self.initialize_poses = True
+                topic_suffix = next_topic.split("/")[-1]
+                if self.initial_poses.has_key(topic_suffix):
+                    self.pre_pose = PoseStamped(pose=self.initial_poses[topic_suffix])
+                    self.initialize_poses = False
+                    return True
+                else:
+                    rospy.logdebug(self.initial_poses.keys())
+                    rospy.loginfo("waiting for %s to be initialized", 
+                                  topic_suffix)
+                    rospy.sleep(1)
+            finally:
+                self.marker_lock.release()
     def joyCB(self, msg):
         if len(msg.axes) == 27 and len(msg.buttons) == 19:
             status = PS3WiredStatus(msg)
@@ -372,8 +426,7 @@ class MoveitJoy:
             raise Exception("unknown joystick")
         self.run(status)
         self.history.add(status)
-    def run(self, status):
-        pre_pose = self.pre_pose
+    def computePoseFromJoy(self, pre_pose, status):
         new_pose = PoseStamped()
         new_pose.header.frame_id = self.frame_id
         new_pose.header.stamp = rospy.Time(0.0)
@@ -465,7 +518,49 @@ class MoveitJoy:
         new_pose.pose.orientation.y = new_q[1]
         new_pose.pose.orientation.z = new_q[2]
         new_pose.pose.orientation.w = new_q[3]
-
+        return new_pose
+    def run(self, status):
+        if not self.initialized:
+            # when not initialized, we will force to change planning_group
+            while True:
+                self.updatePlanningGroup(self.current_planning_group_index)
+                planning_group = self.planning_groups_keys[self.current_planning_group_index]
+                topics = self.planning_groups[planning_group]
+                next_topic = topics[self.current_eef_index]
+                if not self.waitForInitialPose(next_topic, timeout=10):
+                    rospy.logwarn("not yet planning group is initialized")
+                else:
+                    rospy.loginfo("initialized planning group")
+                    self.initialized = True
+                    self.updatePoseTopic(self.current_eef_index)
+                    return
+        if self.history.new(status, "triangle"):   #increment planning group
+            self.updatePlanningGroup(self.current_planning_group_index + 1)
+            self.current_eef_index = 0    # force to reset
+            self.updatePoseTopic(self.current_eef_index)
+            return
+        elif self.history.new(status, "cross"):   #decrement planning group
+            self.updatePlanningGroup(self.current_planning_group_index - 1)
+            self.current_eef_index = 0    # force to reset
+            self.updatePoseTopic(self.current_eef_index)
+            return
+        elif self.history.new(status, "select"):
+            self.updatePoseTopic(self.current_eef_index + 1)
+            return
+        elif self.history.new(status, "start"):
+            self.updatePoseTopic(self.current_eef_index - 1)
+            return
+        elif self.history.new(status, "square"):   #plan
+            rospy.loginfo("Plan")
+            self.plan_pub.publish(Empty())
+            return
+        elif self.history.new(status, "circle"):   #execute
+            rospy.loginfo("Execute")
+            self.execute_pub.publish(Empty())
+            return
+        self.marker_lock.acquire()
+        pre_pose = self.pre_pose
+        new_pose = self.computePoseFromJoy(pre_pose, status)
         now = rospy.Time.from_sec(time.time())
         # placement.time_from_start = now - self.prev_time
         if (now - self.prev_time).to_sec() > 1 / 30.0:
@@ -473,30 +568,16 @@ class MoveitJoy:
             self.pose_pub.publish(new_pose)
             self.joy_pose_pub.publish(new_pose)
             self.prev_time = now
-        if self.history.new(status, "triangle"):   #increment planning group
-            self.updatePlanningGroup(self.current_planning_group_index + 1)
-            self.current_eef_index = 0    # force to reset
-            self.updatePoseTopic(self.current_eef_index)
-        elif self.history.new(status, "cross"):   #decrement planning group
-            self.updatePlanningGroup(self.current_planning_group_index - 1)
-            self.current_eef_index = 0    # force to reset
-            self.updatePoseTopic(self.current_eef_index)
-        elif self.history.new(status, "select"):
-            self.updatePoseTopic(self.current_eef_index + 1)
-        elif self.history.new(status, "start"):
-            self.updatePoseTopic(self.current_eef_index - 1)
-        elif self.history.new(status, "square"):   #plan
-            rospy.loginfo("Plan")
-            self.plan_pub.publish(Empty())
-        elif self.history.new(status, "circle"):   #execute
-            rospy.loginfo("Execute")
-            self.execute_pub.publish(Empty())
         # sync start state to the real robot state
         self.counter = self.counter + 1
         if self.counter % 10:
             self.update_start_state_pub.publish(Empty())
         self.pre_pose = new_pose
-        
+        self.marker_lock.release()
+        # update self.initial_poses
+        self.marker_lock.acquire()
+        self.initial_poses[self.current_pose_topic.split("/")[-1]] = new_pose.pose
+        self.marker_lock.release()
     
 if __name__ == "__main__":
     rospy.init_node("moveit_joy")
