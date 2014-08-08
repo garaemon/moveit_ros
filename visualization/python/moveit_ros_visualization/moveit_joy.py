@@ -2,7 +2,7 @@
 
 import xml.dom.minidom
 from operator import add
-
+from moveit_ros_planning_interface._moveit_robot_interface import RobotInterface
 
 import rospy
 import roslib
@@ -308,47 +308,11 @@ class StatusHistory():
     
 class MoveitJoy:
     def parseSRDF(self):
-        # key := planning group name
-        # value := list of the topic names
+        ri = RobotInterface("/robot_description")
         planning_groups = {}
-        srdf = rospy.get_param("/robot_description_semantic")
-        # 1. get all the planning groups
-        #   lookup all the <group> tags
-        # 2. about for each <group> tag, find end effector
-        dom = xml.dom.minidom.parseString(srdf)
-        groups = dom.getElementsByTagName("group")
-        groups_has_subgroups = []
-        virtual_joints = dom.getElementsByTagName("virtual_joint")
-        for group in groups:
-            name = group.getAttribute("name")
-            # check <chain> and <joint> tag
-            # if it has <subgroup> tag, processing will be postponed
-            # until all other groups finish to be processed
-            chain = group.getElementsByTagName("chain")
-            joint = group.getElementsByTagName("joint")
-            subgroup = group.getElementsByTagName("group")
-            if len(chain) > 0:
-                tip_links = [c.getAttribute("tip_link") for c in chain]
-                planning_groups[name] = ["/rviz/moveit/move_marker/goal_" + l 
-                                         for l in tip_links]
-            elif len(joint) > 0:
-                joint_names = [j.getAttribute("name") for j in joint]
-                # suppose joint is virtual_join and lookup child_link
-                child_links = [[vj.getAttribute("child_link") for vj in virtual_joints if vj.getAttribute("name") == j]
-                               for j in joint_names]
-                planning_groups[name] = ["/rviz/moveit/move_marker/goal_" + l[0]
-                                         for l in child_links if len(l) > 0]
-            elif len(subgroup) > 0:       
-                groups_has_subgroups.append(group)   #process after
-            else:
-                pass
-        for group in groups_has_subgroups:
-            subgroups = group.getElementsByTagName("group")
-            name = group.getAttribute("name")
-            all_topics = [planning_groups[subgroup.getAttribute("name")]
-                          for subgroup in subgroups 
-                          if planning_groups.has_key(subgroup.getAttribute("name"))]
-            planning_groups[name] = reduce(add, all_topics)
+        for g in ri.get_group_names():
+            planning_groups[g] = ["/rviz/moveit/move_marker/goal_" + l
+                                  for l in ri.get_group_joint_tips(g)]
         for name in planning_groups.keys():
             if len(planning_groups[name]) == 0:
                 del planning_groups[name]
