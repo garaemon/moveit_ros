@@ -34,3 +34,6 @@ Joystick Cheat Sheet
    select/start: change end effector
    square: plan
    circle: execute
+
+
+Please add "Pose" to rviz Displays and subscribe ``/joy_pose`` in order to see the output from joystick.
