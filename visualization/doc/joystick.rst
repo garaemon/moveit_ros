@@ -3,7 +3,7 @@ Joystick Control of Rviz Interactive Markers
 
 Run
 ==================
-First, enable "Allow External Communication" checkbox at ``Planning`` tab.
+First, enable "Allow External Comm." checkbox at ``Planning`` tab.
 
 
 Second, please execute following command::
