@@ -514,20 +514,20 @@ class MoveitJoy:
                     self.initialized = True
                     self.updatePoseTopic(self.current_eef_index)
                     return
-        if self.history.new(status, "triangle"):   #increment planning group
+        if self.history.new(status, "select"):   #increment planning group
             self.updatePlanningGroup(self.current_planning_group_index + 1)
             self.current_eef_index = 0    # force to reset
             self.updatePoseTopic(self.current_eef_index)
             return
-        elif self.history.new(status, "cross"):   #decrement planning group
+        elif self.history.new(status, "start"):   #decrement planning group
             self.updatePlanningGroup(self.current_planning_group_index - 1)
             self.current_eef_index = 0    # force to reset
             self.updatePoseTopic(self.current_eef_index)
             return
-        elif self.history.new(status, "select"):
+        elif self.history.new(status, "triangle"):
             self.updatePoseTopic(self.current_eef_index + 1)
             return
-        elif self.history.new(status, "start"):
+        elif self.history.new(status, "cross"):
             self.updatePoseTopic(self.current_eef_index - 1)
             return
         elif self.history.new(status, "square"):   #plan
