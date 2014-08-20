@@ -431,14 +431,8 @@ class MoveitJoy:
         new_pose.header.frame_id = self.frame_id
         new_pose.header.stamp = rospy.Time(0.0)
         # move in local
-        if status.square:
-            scale = 10.0
-        else:
-            dist = status.left_analog_y * status.left_analog_y + status.left_analog_x * status.left_analog_x
-            if dist > 0.9:
-                scale = 20.0
-            else:
-                scale = 60.0
+        dist = status.left_analog_y * status.left_analog_y + status.left_analog_x * status.left_analog_x
+        scale = 200.0
         x_diff = signedSquare(status.left_analog_y) / scale
         y_diff = signedSquare(status.left_analog_x) / scale
         # z
@@ -448,9 +442,7 @@ class MoveitJoy:
             z_diff = -0.005
         else:
             z_diff = 0.0
-        if status.square:
-            z_scale = 10.0
-        elif self.history.all(lambda s: s.L2) or self.history.all(lambda s: s.R2):
+        if self.history.all(lambda s: s.L2) or self.history.all(lambda s: s.R2):
             z_scale = 4.0
         else:
             z_scale = 2.0
@@ -469,46 +461,34 @@ class MoveitJoy:
         roll = 0.0
         pitch = 0.0
         yaw = 0.0
-        DTHETA = 0.02
+        DTHETA = 0.005
         if status.L1:
-            if status.square:
-                yaw = yaw + DTHETA * 5
-            elif self.history.all(lambda s: s.L1):
+            if self.history.all(lambda s: s.L1):
                 yaw = yaw + DTHETA * 2
             else:
-                yaw = yaw + DTHETA
+                yaw = yaw + DTHETA 
         elif status.R1:
-            if status.square:
-                yaw = yaw - DTHETA * 5
-            elif self.history.all(lambda s: s.R1):
+            if self.history.all(lambda s: s.R1):
                 yaw = yaw - DTHETA * 2
             else:
                 yaw = yaw - DTHETA
         if status.up:
-            if status.square:
-                pitch = pitch + DTHETA * 5
-            elif self.history.all(lambda s: s.up):
+            if self.history.all(lambda s: s.up):
                 pitch = pitch + DTHETA * 2
             else:
                 pitch = pitch + DTHETA
         elif status.down:
-            if status.square:
-                pitch = pitch - DTHETA * 5
-            elif self.history.all(lambda s: s.down):
+            if self.history.all(lambda s: s.down):
                 pitch = pitch - DTHETA * 2
             else:
                 pitch = pitch - DTHETA
         if status.right:
-            if status.square:
-                roll = roll + DTHETA * 5
-            elif self.history.all(lambda s: s.right):
+            if self.history.all(lambda s: s.right):
                 roll = roll + DTHETA * 2
             else:
                 roll = roll + DTHETA
         elif status.left:
-            if status.square:
-                roll = roll - DTHETA * 5
-            elif self.history.all(lambda s: s.left):
+            if self.history.all(lambda s: s.left):
                 roll = roll - DTHETA * 2
             else:
                 roll = roll - DTHETA
